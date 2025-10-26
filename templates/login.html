@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Customer Login</title>
+</head>
+<body>
+<script>
+    const API_BASE = 'http://127.0.0.1:5000/api'; // Adjust if your Flask server runs on a different port
+
+    function storeToken(token) {
+        localStorage.setItem('jwt_token', token);
+    }
+
+    function getToken() {
+        return localStorage.getItem('jwt_token');
+    }
+
+    function removeToken() {
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('user_details');
+    }
+
+    function setAuthHeader() {
+        const token = getToken();
+        return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+    }
+
+    function handleLogout() {
+        removeToken();
+        window.location.href = '/login';
+    }
+
+    // Simple Alert Display
+    function displayMessage(type, message) {
+        const container = document.getElementById('message-container');
+        if (container) {
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => { container.innerHTML = ''; }, 5000);
+        }
+    }
+    
+    // Check if the user is authenticated (except on login/register pages)
+    document.addEventListener('DOMContentLoaded', () => {
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/login' && currentPath !== '/' && currentPath !== '/register') {
+            if (!getToken()) {
+                window.location.href = '/login';
+            }
+        }
+    });
+
+</script>
+
+<style>
+/* Basic CSS for forms and layout */
+body { font-family: sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding-top: 50px; }
+.container { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 100%; max-width: 500px; margin-bottom: 20px;}
+h2 { text-align: center; color: #333; }
+.form-group { margin-bottom: 15px; }
+label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+input[type="text"], input[type="email"], input[type="password"], input[type="url"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+button:hover { background-color: #0056b3; }
+.alert { padding: 10px; margin-bottom: 15px; border-radius: 4px; }
+.alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+.nav-links { text-align: center; margin-top: 20px; }
+.nav-links a, .nav-links button { margin: 0 10px; text-decoration: none; color: #007bff; border: none; background: none; cursor: pointer; }
+</style>
+    <div class="container">
+        <h2>Customer Login</h2>
+        <div id="message-container"></div>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit">Login</button>
+        </form>
+        <div class="nav-links">
+            <p>New user? <a href="/">Register here</a></p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    storeToken(data.token);
+                    localStorage.setItem('user_details', JSON.stringify(data));
+                    displayMessage('success', data.message + ' Redirecting...');
+                    
+                    if (data.is_admin) {
+                        setTimeout(() => { window.location.href = '/admin'; }, 1000);
+                    } else {
+                        setTimeout(() => { window.location.href = '/profile'; }, 1000);
+                    }
+                } else {
+                    displayMessage('danger', `Login Failed: ${data.message || 'Invalid Credentials'}`);
+                }
+            } catch (error) {
+                displayMessage('danger', 'Network error or server unavailable.');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>User Profile</title>
+</head>
+<body>
+<script>
+    const API_BASE = 'http://127.0.0.1:5000/api'; // Adjust if your Flask server runs on a different port
+
+    function storeToken(token) {
+        localStorage.setItem('jwt_token', token);
+    }
+
+    function getToken() {
+        return localStorage.getItem('jwt_token');
+    }
+
+    function removeToken() {
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('user_details');
+    }
+
+    function setAuthHeader() {
+        const token = getToken();
+        return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+    }
+
+    function handleLogout() {
+        removeToken();
+        window.location.href = '/login';
+    }
+
+    // Simple Alert Display
+    function displayMessage(type, message) {
+        const container = document.getElementById('message-container');
+        if (container) {
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => { container.innerHTML = ''; }, 5000);
+        }
+    }
+    
+    // Check if the user is authenticated (except on login/register pages)
+    document.addEventListener('DOMContentLoaded', () => {
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/login' && currentPath !== '/' && currentPath !== '/register') {
+            if (!getToken()) {
+                window.location.href = '/login';
+            }
+        }
+    });
+
+</script>
+
+<style>
+/* Basic CSS for forms and layout */
+body { font-family: sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding-top: 50px; }
+.container { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 100%; max-width: 500px; margin-bottom: 20px;}
+h2 { text-align: center; color: #333; }
+.form-group { margin-bottom: 15px; }
+label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+input[type="text"], input[type="email"], input[type="password"], input[type="url"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+button:hover { background-color: #0056b3; }
+.alert { padding: 10px; margin-bottom: 15px; border-radius: 4px; }
+.alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+.nav-links { text-align: center; margin-top: 20px; }
+.nav-links a, .nav-links button { margin: 0 10px; text-decoration: none; color: #007bff; border: none; background: none; cursor: pointer; }
+</style>    
+    <div class="container">
+        <h2>Your Profile</h2>
+        <div id="message-container"></div>
+        <div id="profile-details">
+            <p><strong>Name:</strong> <span id="profileName"></span></p>
+            <p><strong>Email:</strong> <span id="profileEmail"></span></p>
+            <p><strong>KYC Status:</strong> <span id="kycStatus"></span></p>
+            <p><strong>KYC Document:</strong> <span id="kycDoc"></span></p>
+        </div>
+        <div class="nav-links">
+            <a href="/kyc">Upload/Re-upload KYC</a>
+            <button onclick="handleLogout()">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', fetchProfile);
+
+        async function fetchProfile() {
+            const token = getToken();
+            if (!token) {
+                window.location.href = '/login';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/profile`, {
+                    method: 'GET',
+                    headers: setAuthHeader()
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('profileName').textContent = data.name;
+                    document.getElementById('profileEmail').textContent = data.email;
+                    document.getElementById('kycStatus').textContent = data.kyc_status;
+                    document.getElementById('kycDoc').textContent = data.kyc_document;
+                    const kycDocElement = document.getElementById('kycDoc');
+                    if (data.kyc_document && data.kyc_document !== 'Not Uploaded') {
+                        // Create a link to the uploaded file
+                        kycDocElement.innerHTML = `<a href="${data.kyc_document}" target="_blank">View Uploaded PNG</a>`;
+                    } else {
+                        kycDocElement.textContent = 'Not Uploaded';
+                    }                    
+                    // Style the KYC status
+                    const statusSpan = document.getElementById('kycStatus');
+                    statusSpan.style.fontWeight = 'bold';
+                    if (data.kyc_status === 'APPROVED') {
+                        statusSpan.style.color = 'green';
+                    } else if (data.kyc_status === 'REJECTED') {
+                        statusSpan.style.color = 'red';
+                    } else {
+                        statusSpan.style.color = 'orange';
+                    }
+                } else {
+                    displayMessage('danger', `Failed to fetch profile: ${data.message}`);
+                    if (response.status === 401) {
+                        handleLogout();
+                    }
+                }
+            } catch (error) {
+                displayMessage('danger', 'Network error or server unavailable.');
+            }
+        }
+    </script>
+</body>
+</html>
